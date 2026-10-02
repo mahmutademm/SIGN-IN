@@ -1,0 +1,4 @@
+# Student data stays local, never in the public repo
+*.xlsx
+*.xls
+*.csv

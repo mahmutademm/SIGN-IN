@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Restroom Sign-In</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f1ea; --surface: #fffdf8; --ink: #1d2321; --muted: #5d6662;
+    --line: #ddd6c8; --accent: #1f6f5c; --accent-ink: #fff; --accent-soft: #dcebe5;
+    --warn: #9a5b12;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #121614; --surface: #1b201e; --ink: #ecefe9; --muted: #a2aba6;
+      --line: #2e3633; --accent: #4fb596; --accent-ink: #0b1411; --accent-soft: #1d3a31; --warn: #e0a65a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Atkinson Hyperlegible", system-ui, sans-serif; font-size: 18px; }
+  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  h1 { font-size: clamp(28px, 5vw, 40px); margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  a.back { color: var(--muted); text-decoration: none; font-size: 16px; }
+  a.back:hover { color: var(--ink); }
+  .classes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .classes a { display: block; padding: 28px 16px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 14px; text-align: center; text-decoration: none; color: var(--ink);
+    font-size: 28px; font-weight: 700; }
+  .classes a span { display: block; font-size: 14px; font-weight: 400; color: var(--muted); margin-top: 4px; }
+  .classes a:hover, .classes a:focus-visible { border-color: var(--accent); outline: none; }
+  input[type=search] { width: 100%; padding: 16px 18px; font: inherit; font-size: 22px; color: var(--ink);
+    background: var(--surface); border: 2px solid var(--line); border-radius: 14px; }
+  input[type=search]:focus { outline: none; border-color: var(--accent); }
+  .list { list-style: none; padding: 0; margin: 16px 0 0; display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .list button { width: 100%; text-align: left; padding: 18px; font: inherit; color: var(--ink);
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
+  .list button:hover, .list button:focus-visible { border-color: var(--accent); outline: none; }
+  .list small { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; word-break: break-all; }
+  .empty { color: var(--muted); padding: 24px 0; }
+  .overlay { position: fixed; inset: 0; background: rgb(0 0 0 / .45); display: none;
+    align-items: center; justify-content: center; padding: 16px; }
+  .overlay.open { display: flex; }
+  .card { background: var(--surface); border-radius: 18px; padding: 28px; width: min(440px, 100%); text-align: center; }
+  .card h2 { margin: 0 0 6px; font-size: 26px; }
+  .card p { color: var(--muted); margin: 0 0 22px; }
+  .actions { display: flex; gap: 10px; }
+  .actions button { flex: 1; padding: 16px; font: inherit; font-weight: 700; border-radius: 12px; cursor: pointer; border: 1px solid var(--line);
+    background: transparent; color: var(--ink); }
+  .actions .primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .done { font-size: 56px; line-height: 1; margin-bottom: 8px; color: var(--accent); }
+  .err { color: var(--warn); }
+</style>
+</head>
+<body>
+<main id="app"><p class="sub">Loading…</p></main>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="card" id="card"></div>
+</div>
+
+<script src="config.js"></script>
+<script>
+const app = document.getElementById("app");
+const overlay = document.getElementById("overlay");
+const card = document.getElementById("card");
+const cls = new URLSearchParams(location.search).get("class");
+const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fold = s => s.toLocaleLowerCase("tr").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ı/g, "i");
+
+async function showClassPicker() {
+  const rows = await db.select("toilet_students?select=class_name");
+  const counts = {};
+  rows.forEach(r => counts[r.class_name] = (counts[r.class_name] || 0) + 1);
+  const names = Object.keys(counts).sort();
+  app.innerHTML = `
+    <h1>Restroom Sign-In</h1>
+    <p class="sub">Choose your class.</p>
+    <div class="classes">${names.map(c =>
+      `<a href="?class=${encodeURIComponent(c)}">${esc(c)}<span>${counts[c]} students</span></a>`).join("")}</div>`;
+}
+
+async function showClass() {
+  const students = await db.select(
+    `toilet_students?select=email,name&class_name=eq.${encodeURIComponent(cls)}&order=name`);
+  document.title = `${cls} · Restroom Sign-In`;
+  app.innerHTML = `
+    <header><h1>Class ${esc(cls)}</h1><a class="back" href="./">All classes</a></header>
+    <p class="sub">Find your name and tap it to sign out to the restroom.</p>
+    <input type="search" id="q" placeholder="Search your name or email" autocomplete="off" aria-label="Search">
+    <ul class="list" id="list"></ul>`;
+  const q = document.getElementById("q");
+  const list = document.getElementById("list");
+  const render = () => {
+    const term = fold(q.value.trim());
+    const hits = students.filter(s => !term || fold(s.name).includes(term) || s.email.includes(term));
+    list.innerHTML = hits.length
+      ? hits.map(s => `<li><button data-email="${esc(s.email)}">${esc(s.name)}<small>${esc(s.email)}</small></button></li>`).join("")
+      : `<li class="empty">No student in ${esc(cls)} matches "${esc(q.value)}".</li>`;
+  };
+  q.addEventListener("input", render);
+  list.addEventListener("click", e => {
+    const b = e.target.closest("button[data-email]");
+    if (b) confirmSignIn(students.find(s => s.email === b.dataset.email));
+  });
+  render();
+  if (!students.length) list.innerHTML = `<li class="empty">No class called "${esc(cls)}". <a href="./">Pick a class</a>.</li>`;
+}
+
+let resetTimer;
+function closeOverlay() {
+  clearTimeout(resetTimer);
+  overlay.classList.remove("open");
+  const q = document.getElementById("q");
+  if (q) { q.value = ""; q.dispatchEvent(new Event("input")); q.focus(); }
+}
+
+function confirmSignIn(s) {
+  card.innerHTML = `
+    <h2>${esc(s.name)}</h2>
+    <p>${esc(s.email)}</p>
+    <div class="actions">
+      <button id="cancel">Cancel</button>
+      <button class="primary" id="go">Sign in</button>
+    </div>`;
+  overlay.classList.add("open");
+  document.getElementById("go").focus();
+  document.getElementById("cancel").onclick = closeOverlay;
+  document.getElementById("go").onclick = async (ev) => {
+    ev.target.disabled = true;
+    try {
+      const res = await db.rpc("toilet_sign_in", { p_email: s.email });
+      const t = new Date(res.signed_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      card.innerHTML = `
+        <div class="done" aria-hidden="true">✓</div>
+        <h2>Signed in</h2>
+        <p>${esc(res.name)} · ${t}${res.duplicate ? "<br>(you were already signed in a moment ago)" : ""}</p>
+        <div class="actions"><button class="primary" id="ok">Done</button></div>`;
+      document.getElementById("ok").onclick = closeOverlay;
+      resetTimer = setTimeout(closeOverlay, 4000);
+    } catch (err) {
+      card.innerHTML = `<h2 class="err">Couldn't sign in</h2><p>${esc(err.message)}. Please tell your teacher.</p>
+        <div class="actions"><button class="primary" id="ok">Close</button></div>`;
+      document.getElementById("ok").onclick = closeOverlay;
+    }
+  };
+}
+overlay.addEventListener("click", e => { if (e.target === overlay) closeOverlay(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeOverlay(); });
+
+(cls ? showClass() : showClassPicker()).catch(err => {
+  app.innerHTML = `<h1>Restroom Sign-In</h1><p class="err">Couldn't load: ${esc(err.message)}</p>`;
+});
+</script>
+</body>
+</html>
