@@ -6,57 +6,53 @@
 <title>Restroom Sign-In</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/theme.css">
+<link rel="icon" href="assets/edep-logo.png">
 <style>
-  :root {
-    --bg: #f4f1ea; --surface: #fffdf8; --ink: #1d2321; --muted: #5d6662;
-    --line: #ddd6c8; --accent: #1f6f5c; --accent-ink: #fff; --accent-soft: #dcebe5;
-    --warn: #9a5b12;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #121614; --surface: #1b201e; --ink: #ecefe9; --muted: #a2aba6;
-      --line: #2e3633; --accent: #4fb596; --accent-ink: #0b1411; --accent-soft: #1d3a31; --warn: #e0a65a; }
-  }
-  * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--ink);
-    font-family: "Atkinson Hyperlegible", system-ui, sans-serif; font-size: 18px; }
+  body { font-size: 18px; }
   main { max-width: 900px; margin: 0 auto; padding: 24px 16px 64px; }
   header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   h1 { font-size: clamp(28px, 5vw, 40px); margin: 0 0 4px; letter-spacing: -0.01em; }
   .sub { color: var(--muted); margin: 0 0 24px; }
   a.back { color: var(--muted); text-decoration: none; font-size: 16px; }
-  a.back:hover { color: var(--ink); }
+  a.back:hover { color: var(--sky); }
   .classes { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
   .classes a { display: block; padding: 28px 16px; background: var(--surface); border: 1px solid var(--line);
     border-radius: 14px; text-align: center; text-decoration: none; color: var(--ink);
     font-size: 28px; font-weight: 700; }
   .classes a span { display: block; font-size: 14px; font-weight: 400; color: var(--muted); margin-top: 4px; }
-  .classes a:hover, .classes a:focus-visible { border-color: var(--accent); outline: none; }
-  input[type=search] { width: 100%; padding: 16px 18px; font: inherit; font-size: 22px; color: var(--ink);
+  .classes a:hover, .classes a:focus-visible { border-color: var(--sky); background: var(--surface-2); outline: none; }
+  input[type=search] { width: 100%; padding: 16px 18px; font-size: 22px;
     background: var(--surface); border: 2px solid var(--line); border-radius: 14px; }
-  input[type=search]:focus { outline: none; border-color: var(--accent); }
+  input[type=search]::placeholder { color: var(--muted); }
+  input[type=search]:focus { outline: none; border-color: var(--sky); }
   .list { list-style: none; padding: 0; margin: 16px 0 0; display: grid;
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
-  .list button { width: 100%; text-align: left; padding: 18px; font: inherit; color: var(--ink);
+  .list button { width: 100%; text-align: left; padding: 18px;
     background: var(--surface); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; }
-  .list button:hover, .list button:focus-visible { border-color: var(--accent); outline: none; }
+  .list button:hover, .list button:focus-visible { border-color: var(--sky); background: var(--surface-2); outline: none; }
   .list small { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; word-break: break-all; }
   .empty { color: var(--muted); padding: 24px 0; }
-  .overlay { position: fixed; inset: 0; background: rgb(0 0 0 / .45); display: none;
+  .overlay { position: fixed; inset: 0; background: rgb(5 10 20 / .7); display: none;
     align-items: center; justify-content: center; padding: 16px; }
   .overlay.open { display: flex; }
-  .card { background: var(--surface); border-radius: 18px; padding: 28px; width: min(440px, 100%); text-align: center; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 28px;
+    width: min(440px, 100%); text-align: center; }
   .card h2 { margin: 0 0 6px; font-size: 26px; }
   .card p { color: var(--muted); margin: 0 0 22px; }
   .actions { display: flex; gap: 10px; }
-  .actions button { flex: 1; padding: 16px; font: inherit; font-weight: 700; border-radius: 12px; cursor: pointer; border: 1px solid var(--line);
-    background: transparent; color: var(--ink); }
-  .actions .primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-  .done { font-size: 56px; line-height: 1; margin-bottom: 8px; color: var(--accent); }
-  .err { color: var(--warn); }
+  .actions button { flex: 1; padding: 16px; font-weight: 700; border-radius: 12px; cursor: pointer;
+    border: 1px solid var(--line); background: transparent; }
+  .actions .primary { background: var(--sky); border-color: var(--sky); color: var(--accent-ink); }
+  .done { width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 34px; background: var(--accent-soft); color: var(--sky); }
 </style>
 </head>
 <body>
-<main id="app"><p class="sub">Loading…</p></main>
+<main>
+  <div class="brand"><img src="assets/edep-logo-light.png" alt="Edep Academy"><span class="tag">Restroom Sign-In</span></div>
+  <div id="app"><p class="sub">Loading…</p></div>
+</main>
 
 <div class="overlay" id="overlay" role="dialog" aria-modal="true">
   <div class="card" id="card"></div>
@@ -77,8 +73,8 @@ async function showClassPicker() {
   rows.forEach(r => counts[r.class_name] = (counts[r.class_name] || 0) + 1);
   const names = Object.keys(counts).sort();
   app.innerHTML = `
-    <h1>Restroom Sign-In</h1>
-    <p class="sub">Choose your class.</p>
+    <h1>Choose your class</h1>
+    <p class="sub">Tap your class to open its sign-in page.</p>
     <div class="classes">${names.map(c =>
       `<a href="?class=${encodeURIComponent(c)}">${esc(c)}<span>${counts[c]} students</span></a>`).join("")}</div>`;
 }

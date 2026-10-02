@@ -1,0 +1,26 @@
+/* Edep Academy palette: navy #1D3C6A, light blue #AEC8DF. Dark navy UI shared by both pages. */
+:root {
+  --navy: #1d3c6a;
+  --sky: #aec8df;
+  --bg: #0d1829;
+  --surface: #14233b;
+  --surface-2: #1a2d4b;
+  --line: #263d61;
+  --ink: #eef3f9;
+  --muted: #9fb3cb;
+  --accent: var(--sky);
+  --accent-ink: #0d1829;
+  --accent-soft: rgb(174 200 223 / .14);
+  --warn: #f2b56b;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Atkinson Hyperlegible", system-ui, sans-serif; }
+button, input, select { font: inherit; color: var(--ink); }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding-bottom: 20px; margin-bottom: 28px; border-bottom: 1px solid var(--line); }
+.brand img { height: 52px; width: auto; display: block; }
+.brand .tag { color: var(--muted); font-size: 15px; text-align: right; }
+.err { color: var(--warn); }
+.muted { color: var(--muted); }
