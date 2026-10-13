@@ -2,15 +2,27 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Restroom Sign-In</title>
+<meta name="theme-color" content="#0d1829">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Restroom">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/theme.css">
 <link rel="icon" href="assets/edep-logo.png">
 <style>
-  body { font-size: 18px; }
-  main { max-width: 900px; margin: 0 auto; padding: 24px 16px 64px; }
+  /* iPad kiosk: no double-tap zoom, no rubber-band scroll, clear of the notch/home bar when installed. */
+  html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+  body { font-size: 18px; overscroll-behavior: none; -webkit-tap-highlight-color: transparent; }
+  button, .classes a { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  main { max-width: 900px; margin: 0 auto;
+    padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+             max(64px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
   header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   h1 { font-size: clamp(28px, 5vw, 40px); margin: 0 0 4px; letter-spacing: -0.01em; }
   .sub { color: var(--muted); margin: 0 0 24px; }
@@ -46,6 +58,15 @@
   .actions .primary { background: var(--sky); border-color: var(--sky); color: var(--accent-ink); }
   .done { width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; display: grid; place-items: center;
     font-size: 34px; background: var(--accent-soft); color: var(--sky); }
+  /* Refused: the whole screen turns red so it reads from across the room. */
+  .overlay.denied { background: var(--danger); }
+  .overlay.denied .card { background: none; border: 0; width: min(620px, 100%); color: #fff; }
+  .overlay.denied .card h2 { font-size: clamp(32px, 5.5vw, 48px); line-height: 1.15; margin-bottom: 14px; }
+  .overlay.denied .card p { color: #fff; font-size: 22px; margin-bottom: 14px; }
+  .overlay.denied .card p.small { font-size: 18px; opacity: .9; margin-bottom: 28px; }
+  .overlay.denied .actions .primary { background: #fff; border-color: #fff; color: var(--danger); font-size: 20px; }
+  .stop { width: 112px; height: 112px; margin: 0 auto 24px; border-radius: 50%; display: grid; place-items: center;
+    font-size: 64px; font-weight: 700; line-height: 1; background: #fff; color: var(--danger); }
 </style>
 </head>
 <body>
@@ -63,9 +84,21 @@
 const app = document.getElementById("app");
 const overlay = document.getElementById("overlay");
 const card = document.getElementById("card");
-const cls = new URLSearchParams(location.search).get("class");
 const esc = s => s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const fold = s => s.toLocaleLowerCase("tr").normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/ı/g, "i");
+const clock = d => new Date(d).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+const touch = matchMedia("(pointer: coarse)").matches;
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch {} },
+};
+
+// The installed iPad app always reopens on the class it was set to; "All classes" (?pick) releases it.
+const params = new URLSearchParams(location.search);
+let cls = params.get("class");
+if (params.has("pick")) store.set("kiosk_class", null);
+else if (cls) store.set("kiosk_class", cls);
+else if ((cls = store.get("kiosk_class"))) history.replaceState(null, "", `?class=${encodeURIComponent(cls)}`);
 
 async function showClassPicker() {
   const rows = await db.select("toilet_students?select=class_name");
@@ -84,7 +117,7 @@ async function showClass() {
     `toilet_students?select=email,name&class_name=eq.${encodeURIComponent(cls)}&order=name`);
   document.title = `${cls} · Restroom Sign-In`;
   app.innerHTML = `
-    <header><h1>Class ${esc(cls)}</h1><a class="back" href="./">All classes</a></header>
+    <header><h1>Class ${esc(cls)}</h1><a class="back" href="?pick">All classes</a></header>
     <p class="sub">Find your name and tap it to sign out to the restroom.</p>
     <input type="search" id="q" placeholder="Search your name or email" autocomplete="off" aria-label="Search">
     <ul class="list" id="list"></ul>`;
@@ -103,15 +136,28 @@ async function showClass() {
     if (b) confirmSignIn(students.find(s => s.email === b.dataset.email));
   });
   render();
-  if (!students.length) list.innerHTML = `<li class="empty">No class called "${esc(cls)}". <a href="./">Pick a class</a>.</li>`;
+  if (!students.length) list.innerHTML = `<li class="empty">No class called "${esc(cls)}". <a href="?pick">Pick a class</a>.</li>`;
 }
 
 let resetTimer;
 function closeOverlay() {
   clearTimeout(resetTimer);
-  overlay.classList.remove("open");
+  overlay.classList.remove("open", "denied");
   const q = document.getElementById("q");
-  if (q) { q.value = ""; q.dispatchEvent(new Event("input")); q.focus(); }
+  // On the iPad, focusing would pop the keyboard over the name list after every sign-in.
+  if (q) { q.value = ""; q.dispatchEvent(new Event("input")); if (!touch) q.focus(); }
+}
+
+function showDenied(res) {
+  overlay.classList.add("denied");
+  card.innerHTML = `
+    <div class="stop" aria-hidden="true">✕</div>
+    <h2>You can't use the restroom right now</h2>
+    <p>${esc(res.name)}, you already went at ${clock(res.last_at)}.<br>You can go again at ${clock(res.next_at)}.</p>
+    <p class="small">This was recorded for your teacher. If it's an emergency, ask your teacher.</p>
+    <div class="actions"><button class="primary" id="ok">OK</button></div>`;
+  document.getElementById("ok").onclick = closeOverlay;
+  resetTimer = setTimeout(closeOverlay, 10000);
 }
 
 function confirmSignIn(s) {
@@ -129,16 +175,16 @@ function confirmSignIn(s) {
     ev.target.disabled = true;
     try {
       const res = await db.rpc("toilet_sign_in", { p_email: s.email });
-      const t = new Date(res.signed_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      if (res.allowed === false) return showDenied(res);
       card.innerHTML = `
         <div class="done" aria-hidden="true">✓</div>
         <h2>Signed in</h2>
-        <p>${esc(res.name)} · ${t}${res.duplicate ? "<br>(you were already signed in a moment ago)" : ""}</p>
+        <p>${esc(res.name)} · ${clock(res.signed_at)}${res.duplicate ? "<br>(you were already signed in a moment ago)" : ""}</p>
         <div class="actions"><button class="primary" id="ok">Done</button></div>`;
       document.getElementById("ok").onclick = closeOverlay;
       resetTimer = setTimeout(closeOverlay, 4000);
     } catch (err) {
-      card.innerHTML = `<h2 class="err">Couldn't sign in</h2><p>${esc(err.message)}. Please tell your teacher.</p>
+      card.innerHTML = `<h2 class="err">Couldn't sign in</h2><p>${esc(why(err))}. Please tell your teacher.</p>
         <div class="actions"><button class="primary" id="ok">Close</button></div>`;
       document.getElementById("ok").onclick = closeOverlay;
     }
@@ -147,9 +193,23 @@ function confirmSignIn(s) {
 overlay.addEventListener("click", e => { if (e.target === overlay) closeOverlay(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeOverlay(); });
 
+// fetch() throws a TypeError ("Load failed" on iPad) when there is no connection.
+function why(err) { return err instanceof TypeError ? "The iPad has no internet connection" : err.message; }
+
 (cls ? showClass() : showClassPicker()).catch(err => {
-  app.innerHTML = `<h1>Restroom Sign-In</h1><p class="err">Couldn't load: ${esc(err.message)}</p>`;
+  app.innerHTML = `<h1>Restroom Sign-In</h1><p class="err">Couldn't load: ${esc(why(err))}.</p>
+    <div class="actions"><button class="primary" onclick="location.reload()">Try again</button></div>`;
+  addEventListener("online", () => location.reload());
 });
+
+// An installed iPad app resumes instead of reloading. Reload when it wakes after an hour or more
+// so the roster and any new version of the app are picked up.
+const loadedAt = Date.now();
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && Date.now() - loadedAt > 3600e3 && !overlay.classList.contains("open")) location.reload();
+});
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 </script>
 </body>
 </html>

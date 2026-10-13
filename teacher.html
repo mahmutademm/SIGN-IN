@@ -46,6 +46,11 @@
   tr:last-child td { border-bottom: 0; }
   .pill { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--accent-soft);
     color: var(--sky); font-size: 13px; font-weight: 700; }
+  .pill.denied { background: var(--danger-soft); color: var(--danger-text); }
+  .stat.denied b { color: var(--danger-text); }
+  tr.denied td { background: rgb(229 72 77 / .06); }
+  td.status { color: var(--muted); font-size: 14px; }
+  #top td:first-child { white-space: normal; }
   .studentlink { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
   .studentlink:hover { text-decoration: underline; color: var(--sky); }
   .range { color: var(--muted); margin: -8px 0 16px; font-size: 14px; }
@@ -124,6 +129,13 @@ async function showDashboard() {
       </label>
       <label>Class<select id="cls"><option value="">All classes</option>${classes.map(c => `<option>${esc(c)}</option>`).join("")}</select></label>
       <label class="student">Student<select id="student"></select></label>
+      <label>Status
+        <select id="status">
+          <option value="">Sign-ins and denied</option>
+          <option value="allowed">Sign-ins only</option>
+          <option value="denied">Denied only</option>
+        </select>
+      </label>
       <span class="end"><button id="clear">Clear filters</button><button id="csv">Download CSV</button></span>
     </div>
     <p class="range" id="range"></p>
@@ -138,11 +150,13 @@ async function showDashboard() {
   $("period").addEventListener("change", load);
   $("cls").addEventListener("change", () => { fillStudents(); load(); });
   $("student").addEventListener("change", render);
+  $("status").addEventListener("change", render);
   $("prev").onclick = () => shiftDay(-1);
   $("next").onclick = () => shiftDay(1);
   $("today").onclick = () => { $("day").value = ymd(new Date()); $("period").value = "day"; load(); };
   $("clear").onclick = () => {
-    $("day").value = ymd(new Date()); $("period").value = "day"; $("cls").value = ""; $("student").value = ""; fillStudents(); load();
+    $("day").value = ymd(new Date()); $("period").value = "day"; $("cls").value = ""; $("student").value = ""; $("status").value = "";
+    fillStudents(); load();
   };
   $("csv").onclick = downloadCsv;
   $("top").addEventListener("click", e => {
@@ -210,7 +224,9 @@ async function load() {
 
 function filtered() {
   const email = $("student").value;
-  return email ? rows.filter(r => r.student_email === email) : rows;
+  const status = $("status").value;
+  return rows.filter(r => (!email || r.student_email === email)
+    && (!status || (status === "denied") !== r.allowed));
 }
 
 function render() {
@@ -222,36 +238,44 @@ function render() {
 
   const byStudent = new Map();
   rows.forEach(r => {
-    const s = byStudent.get(r.student_email) || { name: r.student_name, email: r.student_email, cls: r.class_name, n: 0 };
-    s.n++; byStudent.set(r.student_email, s);
+    const s = byStudent.get(r.student_email) || { name: r.student_name, email: r.student_email, cls: r.class_name, n: 0, denied: 0 };
+    if (r.allowed) s.n++; else s.denied++;
+    byStudent.set(r.student_email, s);
   });
-  const top = [...byStudent.values()].sort((a, b) => b.n - a.n || a.name.localeCompare(b.name));
-  const days = new Set(list.map(r => ymd(new Date(r.signed_at)))).size;
+  const top = [...byStudent.values()].sort((a, b) => b.n - a.n || b.denied - a.denied || a.name.localeCompare(b.name));
+  const signins = list.filter(r => r.allowed);
+  const denied = list.length - signins.length;
+  const days = new Set(signins.map(r => ymd(new Date(r.signed_at)))).size;
   const studentsInView = new Set(list.map(r => r.student_email)).size;
 
   $("stats").innerHTML = `
-    <div class="stat"><b>${list.length}</b><span>${list.length === 1 ? "sign-in" : "sign-ins"}</span></div>
+    <div class="stat"><b>${signins.length}</b><span>${signins.length === 1 ? "sign-in" : "sign-ins"}</span></div>
+    <div class="stat denied"><b>${denied}</b><span>${denied === 1 ? "denied attempt" : "denied attempts"} (3-hour rule)</span></div>
     <div class="stat"><b>${studentsInView}</b><span>${studentsInView === 1 ? "student" : "different students"}</span></div>
     <div class="stat"><b>${days}</b><span>${days === 1 ? "day with sign-ins" : "days with sign-ins"}</span></div>`;
 
   $("table").innerHTML = list.length ? `
-    <table><thead><tr><th>${oneDay ? "Time" : "When"}</th><th>Student</th><th>Class</th><th>Email</th></tr></thead>
-    <tbody>${list.map(r => `<tr><td>${fmt(r.signed_at)}</td><td>${esc(r.student_name)}</td>
-      <td><span class="pill">${esc(r.class_name)}</span></td><td class="email">${esc(r.student_email)}</td></tr>`).join("")}</tbody></table>`
+    <table><thead><tr><th>${oneDay ? "Time" : "When"}</th><th>Student</th><th>Class</th><th>Status</th><th>Email</th></tr></thead>
+    <tbody>${list.map(r => `<tr${r.allowed ? "" : ` class="denied"`}><td>${fmt(r.signed_at)}</td><td>${esc(r.student_name)}</td>
+      <td><span class="pill">${esc(r.class_name)}</span></td>
+      <td class="status">${r.allowed ? "Signed in" : `<span class="pill denied">Denied</span>`}</td>
+      <td class="email">${esc(r.student_email)}</td></tr>`).join("")}</tbody></table>`
     : `<p class="muted">No sign-ins for these filters.</p>`;
 
   $("top").innerHTML = top.length ? `
     <table><tbody>${top.slice(0, 15).map(s => `<tr>
       <td><button class="studentlink" data-email="${esc(s.email)}">${esc(s.name)}</button></td>
-      <td><span class="pill">${esc(s.cls)}</span></td><td>${s.n}×</td></tr>`).join("")}</tbody></table>`
+      <td><span class="pill">${esc(s.cls)}</span></td>
+      <td>${s.n}×${s.denied ? ` <span class="pill denied">${s.denied} denied</span>` : ""}</td></tr>`).join("")}</tbody></table>`
     : `<p class="muted">Nothing yet.</p>`;
 }
 
 function downloadCsv() {
   const q = v => `"${String(v).replace(/"/g, '""')}"`;
-  const lines = [["Date", "Time", "Student", "Email", "Class"].join(",")].concat(filtered().map(r => {
+  const lines = [["Date", "Time", "Student", "Email", "Class", "Status"].join(",")].concat(filtered().map(r => {
     const d = new Date(r.signed_at);
-    return [ymd(d), d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), r.student_name, r.student_email, r.class_name].map(q).join(",");
+    return [ymd(d), d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }), r.student_name, r.student_email, r.class_name,
+      r.allowed ? "Signed in" : "Denied"].map(q).join(",");
   }));
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv" }));
