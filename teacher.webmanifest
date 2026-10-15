@@ -1,0 +1,17 @@
+{
+  "id": "./out.html",
+  "name": "Edep Who's Out",
+  "short_name": "Who's Out",
+  "description": "Live view, for Edep Academy teachers, of which students are out of class.",
+  "start_url": "./out.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1829",
+  "theme_color": "#0d1829",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "assets/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

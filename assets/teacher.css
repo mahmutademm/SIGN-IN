@@ -1,6 +1,10 @@
 /* Shared by the teacher pages (out.html, teacher.html). */
-body { font-size: 16px; }
-main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+/* Installed as an app (Who's Out): no double-tap zoom, and clear of the notch/home bar. */
+html { touch-action: manipulation; -webkit-text-size-adjust: 100%; }
+body { font-size: 16px; -webkit-tap-highlight-color: transparent; }
+main { max-width: 1100px; margin: 0 auto;
+  padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+           max(64px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
 h1 { font-size: 30px; margin: 0 0 16px; }
 h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 700; }
 input, select { padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }

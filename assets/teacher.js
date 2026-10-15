@@ -16,10 +16,24 @@ let rules = {};   // school_start, school_end, visit_gap_minutes, overdue_minute
 let refreshTimer;
 let startPage;
 
+// fetch() throws a TypeError ("Load failed" on iPhone) when there is no connection.
+const why = err => err instanceof TypeError ? "No internet connection" : err.message;
+
+// A teacher page left in the background this long locks itself, so a phone or iPad left alone (or the
+// installed Who's Out app reopened later) asks for the teacher code again. Reloading also picks up new versions.
+const LOCK_AFTER_MINUTES = 15;
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") { hiddenAt = Date.now(); return; }
+  if (code && hiddenAt && Date.now() - hiddenAt > LOCK_AFTER_MINUTES * 60000) {
+    code = null; store.set("teacher_code", null); location.reload();
+  }
+});
+
 function teacherPage(start) {
   startPage = () => db.rpc("toilet_teacher_settings", { p_code: code })
     .then(r => { rules = r || {}; brand.hidden = false; return start(); })
-    .catch(err => lockIfCodeChanged(err) || showLogin(err.message));
+    .catch(err => lockIfCodeChanged(err) || showLogin(why(err)));
   $("logout").onclick = () => { code = null; store.set("teacher_code", null); showLogin(); };
   code ? startPage() : showLogin();
 }
@@ -44,7 +58,7 @@ function showLogin(msg = "") {
     try {
       if (!(await db.rpc("toilet_check_code", { p_code: c }))) return showLogin("That code is not right.");
       code = c; store.set("teacher_code", c); startPage();
-    } catch (err) { showLogin(err.message); }
+    } catch (err) { showLogin(why(err)); }
   };
 }
 

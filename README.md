@@ -3,9 +3,10 @@
 Static site backed by Supabase (project `fomzenfbdtoqwknqtkzi`, free tier).
 
 - `index.html`: student kiosk, installable on an iPad as an app (PWA). Shows a class picker; `index.html?class=8A` opens that class's own sign-in page.
-- `out.html`: **Who's out**, the live teacher view. Pick a class to see who is out right now (with minutes), who hasn't signed back in, and who is in class. `out.html?class=8A` opens one class.
+- `out.html`: **Who's out**, the live teacher view. Pick a class to see who is out right now (with minutes), who hasn't signed back in, and who is in class. `out.html?class=8A` opens one class. Installable on a phone or iPad as its own app, "Who's Out" (`teacher.webmanifest`).
 - `teacher.html`: teacher log. Filter by date range, class, student, or status (sign-ins, over 30 minutes / not signed back, denied); shows out and back times and minutes; download CSV.
 - `assets/teacher.js`, `assets/teacher.css`: shared by the two teacher pages (teacher code, lock screen, trip labels). Both open with the shared teacher code, and stay unlocked while moving between them in the same browser tab.
+  The code is never saved on the device: closing the tab or app forgets it, and a teacher page left in the background for 15 minutes locks itself (`LOCK_AFTER_MINUTES` in `assets/teacher.js`).
 - `config.js`: Supabase URL and publishable key (safe to be public).
 - `manifest.webmanifest`, `sw.js`, `assets/icons/`: what makes the kiosk installable and lets it open without Wi-Fi.
 
@@ -42,6 +43,16 @@ The rule runs in the database (`toilet_sign_in`), so reloading the page or using
    and triple-click the side/home button to lock the iPad to it.
 
 The app reloads itself when the iPad wakes after an hour or more, so roster changes and new versions show up on their own.
+
+## Install Who's Out on a teacher's phone or iPad
+
+1. Open `…/out.html` in **Safari** (iPhone/iPad) or **Chrome** (Android, computer).
+2. iPhone/iPad: **Share → Add to Home Screen → Add**. Android/computer: Chrome's menu → **Install app** (or **Add to Home screen**).
+3. The "Who's Out" icon opens full screen on the Who's out page; **Log** is one tap away inside the app.
+4. It asks for the teacher code every time it is opened fresh, and again after 15 minutes in the background.
+   The code is never stored, so a phone or iPad left on a desk doesn't stay open on student data.
+
+Don't install Who's Out on a student kiosk iPad: anyone who can leave the kiosk app could open it (it still asks for the code).
 
 ## Database (all prefixed `toilet_`)
 

@@ -2,8 +2,15 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Who's Out</title>
+<meta name="theme-color" content="#0d1829">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Who's Out">
+<link rel="manifest" href="teacher.webmanifest">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/theme.css">
@@ -89,7 +96,7 @@ async function load() {
     render();
     $("updated").textContent = `Updated ${clock(new Date())}`;
   } catch (err) {
-    if (!lockIfCodeChanged(err) && $("updated")) $("updated").innerHTML = `<span class="err">Couldn't refresh: ${esc(err.message)}</span>`;
+    if (!lockIfCodeChanged(err) && $("updated")) $("updated").innerHTML = `<span class="err">Couldn't refresh: ${esc(why(err))}</span>`;
   }
 }
 
@@ -101,7 +108,7 @@ async function signBack(b) {
     await load();
   } catch (err) {
     b.disabled = false;
-    if (!lockIfCodeChanged(err)) $("updated").innerHTML = `<span class="err">Couldn't sign back in: ${esc(err.message)}</span>`;
+    if (!lockIfCodeChanged(err)) $("updated").innerHTML = `<span class="err">Couldn't sign back in: ${esc(why(err))}</span>`;
   }
 }
 
@@ -184,6 +191,13 @@ function render() {
 }
 
 teacherPage(showBoard);
+
+// Timers pause while the app or tab is in the background, so refresh as soon as it's back on screen.
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && $("board")) load();
+});
+
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
 </script>
 </body>
 </html>

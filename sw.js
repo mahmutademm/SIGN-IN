@@ -1,4 +1,4 @@
-// Keeps the kiosk shell on the iPad so the app opens even if the Wi-Fi drops.
+// Keeps the kiosk and Who's Out shells on the device so the apps open even if the Wi-Fi drops.
 // Network first, so a new deploy shows up on the next load; the cached copy is only the fallback.
 // Supabase requests are never cached: sign-ins always go to the server.
 const CACHE = "restroom-v1";
@@ -12,6 +12,12 @@ const SHELL = [
   "assets/edep-logo-light.png",
   "assets/icons/apple-touch-icon.png",
   "assets/icons/icon-192.png",
+  // Who's Out (teacher app) and the log it links to
+  "out.html",
+  "teacher.html",
+  "teacher.webmanifest",
+  "assets/teacher.css",
+  "assets/teacher.js",
 ];
 
 self.addEventListener("install", e => {
