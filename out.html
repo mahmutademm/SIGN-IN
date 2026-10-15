@@ -68,7 +68,6 @@ async function showBoard() {
   app.innerHTML = `
     <div class="head"><h1>Who's out</h1><span class="updated" id="updated" aria-live="polite"></span></div>
     <div class="classes" id="classes" role="group" aria-label="Class"></div>
-    <div class="stats" id="stats"></div>
     <div id="board"></div>`;
   $("classes").addEventListener("click", e => {
     const b = e.target.closest("[data-class]");
@@ -127,7 +126,6 @@ function render() {
   const students = roster.filter(inView);
   const outEmails = new Set(out.map(r => r.student_email));
   const inClass = students.filter(s => !outEmails.has(s.email));
-  const tripsToday = trips.filter(r => r.allowed && inView(r)).length;
 
   const classes = [...new Set(roster.map(s => s.class_name))].sort();
   $("classes").innerHTML = ["", ...classes].map(c => {
@@ -136,12 +134,6 @@ function render() {
     return `<button data-class="${esc(c)}" aria-pressed="${c === cls}">${c ? esc(c) : "All classes"}${o.length
       ? `<span class="count${late ? " missing" : ""}" title="${o.length} out">${o.length}</span>` : ""}</button>`;
   }).join("");
-
-  $("stats").innerHTML = `
-    <div class="stat"><b>${away.length}</b><span>out now</span></div>
-    <div class="stat denied"><b>${missing.length}</b><span>not signed back after ${limit} min</span></div>
-    <div class="stat"><b>${inClass.length}</b><span>in class, of ${students.length}</span></div>
-    <div class="stat"><b>${tripsToday}</b><span>${tripsToday === 1 ? "trip" : "trips"} today</span></div>`;
 
   const card = r => {
     const st = tripStatus(r, now);
