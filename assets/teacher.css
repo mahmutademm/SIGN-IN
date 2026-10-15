@@ -1,0 +1,41 @@
+/* Shared by the teacher pages (out.html, teacher.html). */
+body { font-size: 16px; }
+main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 64px; }
+h1 { font-size: 30px; margin: 0 0 16px; }
+h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); font-weight: 700; }
+input, select { padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+input:focus, select:focus, button:focus-visible { outline: 2px solid var(--sky); outline-offset: -1px; }
+button { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+button:hover { border-color: var(--sky); }
+button:disabled { opacity: .6; cursor: default; }
+button.primary { background: var(--sky); border-color: var(--sky); color: var(--accent-ink); font-weight: 700; }
+.link { background: none; border: 0; padding: 0; color: var(--muted); text-decoration: underline; }
+
+.brand { flex-wrap: wrap; }
+.brand nav { display: flex; align-items: center; gap: 18px; }
+.brand nav a { color: var(--muted); text-decoration: none; padding-bottom: 2px; border-bottom: 2px solid transparent; }
+.brand nav a:hover { color: var(--ink); }
+.brand nav a[aria-current] { color: var(--ink); font-weight: 700; border-bottom-color: var(--sky); }
+
+.login { max-width: 400px; margin: 10vh auto 0; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 16px; padding: 28px; }
+.login img { height: 56px; margin-bottom: 20px; }
+.login form { display: grid; gap: 12px; }
+
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+.stat b { display: block; font-size: 28px; font-variant-numeric: tabular-nums; color: var(--sky); }
+.stat span { color: var(--muted); font-size: 13px; }
+.stat.denied b { color: var(--danger-text); }
+
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { text-align: left; padding: 9px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font-size: 13px; color: var(--muted); font-weight: 700; }
+tr:last-child td { border-bottom: 0; }
+
+.pill { display: inline-block; padding: 2px 9px; border-radius: 999px; background: var(--accent-soft);
+  color: var(--sky); font-size: 13px; font-weight: 700; }
+.pill.denied { background: var(--danger-soft); color: var(--danger-text); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.quiet { background: none; color: var(--muted); font-weight: 400; padding: 0; }

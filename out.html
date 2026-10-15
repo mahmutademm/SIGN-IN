@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who's Out</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/theme.css">
+<link rel="stylesheet" href="assets/teacher.css">
+<link rel="icon" href="assets/edep-logo.png">
+<style>
+  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 4px 16px; flex-wrap: wrap; margin-bottom: 16px; }
+  .head h1 { margin: 0; }
+  .updated { color: var(--muted); font-size: 14px; }
+  .classes { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .classes button { display: inline-flex; align-items: center; gap: 8px; border-radius: 999px; padding: 9px 16px; }
+  .classes button[aria-pressed=true] { background: var(--sky); border-color: var(--sky); color: var(--accent-ink); font-weight: 700; }
+  .count { min-width: 22px; padding: 1px 7px; border-radius: 999px; text-align: center; font-size: 13px; font-weight: 700;
+    background: var(--accent-soft); color: var(--sky); }
+  [aria-pressed=true] .count { background: var(--accent-ink); }
+  .count.missing, [aria-pressed=true] .count.missing { background: var(--danger); color: #fff; }
+  section { margin-bottom: 28px; }
+  section h2 small { font-weight: 400; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+  .trip { display: grid; gap: 6px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+  .trip.missing { border-color: var(--danger); background: linear-gradient(var(--danger-soft), var(--danger-soft)), var(--surface); }
+  .trip .who { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .trip .name { font-size: 18px; font-weight: 700; }
+  .trip .where { color: var(--muted); font-size: 14px; }
+  .trip .time { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 4px; }
+  .trip .min { font-size: 30px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--sky); }
+  .trip.missing .min { color: var(--danger-text); }
+  .trip .time button { font-size: 14px; padding: 8px 12px; }
+  .bar { height: 5px; border-radius: 3px; background: var(--line); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--sky); }
+  .inclass { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+  .inclass li { padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+  .inclass small { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
+  .inclass .late { color: var(--warn); }
+  .empty { color: var(--muted); margin: 0; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand" id="brand" hidden><img src="assets/edep-logo-light.png" alt="Edep Academy">
+    <nav class="tag"><a href="out.html" aria-current="page">Who's out</a><a href="teacher.html">Log</a>
+      <button class="link" id="logout">Lock</button></nav></div>
+  <div id="app"></div>
+</main>
+<script src="config.js"></script>
+<script src="assets/teacher.js"></script>
+<script>
+let roster = [];
+let trips = [];   // today's sign-ins for every class, newest first
+let cls = new URLSearchParams(location.search).get("class") || "";
+
+async function showBoard() {
+  roster = await db.select("toilet_students?select=email,name,class_name&order=name");
+  if (!roster.some(s => s.class_name === cls)) cls = "";
+  app.innerHTML = `
+    <div class="head"><h1>Who's out</h1><span class="updated" id="updated" aria-live="polite"></span></div>
+    <div class="classes" id="classes" role="group" aria-label="Class"></div>
+    <div class="stats" id="stats"></div>
+    <div id="board"></div>`;
+  $("classes").addEventListener("click", e => {
+    const b = e.target.closest("[data-class]");
+    if (!b) return;
+    cls = b.dataset.class;
+    history.replaceState(null, "", cls ? `?class=${encodeURIComponent(cls)}` : location.pathname);
+    render();
+  });
+  $("board").addEventListener("click", e => {
+    const b = e.target.closest("[data-back]");
+    if (b) signBack(b);
+  });
+  await load();
+  refreshTimer = setInterval(load, 15000);
+}
+
+async function load() {
+  const start = new Date(); start.setHours(0, 0, 0, 0);
+  const end = new Date(start); end.setDate(start.getDate() + 1);
+  try {
+    trips = await db.rpc("toilet_teacher_signins", {
+      p_code: code, p_from: start.toISOString(), p_to: end.toISOString(), p_class: null,
+    });
+    if (!$("board")) return;   // locked while loading
+    render();
+    $("updated").textContent = `Updated ${clock(new Date())}`;
+  } catch (err) {
+    if (!lockIfCodeChanged(err) && $("updated")) $("updated").innerHTML = `<span class="err">Couldn't refresh: ${esc(err.message)}</span>`;
+  }
+}
+
+// A teacher signs a student back in: they're in class but forgot to tap their name.
+async function signBack(b) {
+  b.disabled = true;
+  try {
+    await db.rpc("toilet_teacher_sign_back", { p_code: code, p_id: Number(b.dataset.back) });
+    await load();
+  } catch (err) {
+    b.disabled = false;
+    if (!lockIfCodeChanged(err)) $("updated").innerHTML = `<span class="err">Couldn't sign back in: ${esc(err.message)}</span>`;
+  }
+}
+
+function render() {
+  const now = Date.now();
+  const limit = overdueMinutes();
+  // A student's latest trip today decides whether they're out now; trips are newest first.
+  const latest = new Map();
+  trips.forEach(r => { if (r.allowed && r.timed && !latest.has(r.student_email)) latest.set(r.student_email, r); });
+  const outAll = [...latest.values()].filter(r => !r.returned_at)
+    .sort((a, b) => new Date(a.signed_at) - new Date(b.signed_at));
+  const inView = r => !cls || r.class_name === cls;
+  const out = outAll.filter(inView);
+  const missing = out.filter(r => tripStatus(r, now) === "missing");
+  const away = out.filter(r => tripStatus(r, now) === "out");
+  const students = roster.filter(inView);
+  const outEmails = new Set(out.map(r => r.student_email));
+  const inClass = students.filter(s => !outEmails.has(s.email));
+  const tripsToday = trips.filter(r => r.allowed && inView(r)).length;
+
+  const classes = [...new Set(roster.map(s => s.class_name))].sort();
+  $("classes").innerHTML = ["", ...classes].map(c => {
+    const o = outAll.filter(r => !c || r.class_name === c);
+    const late = o.some(r => tripStatus(r, now) === "missing");
+    return `<button data-class="${esc(c)}" aria-pressed="${c === cls}">${c ? esc(c) : "All classes"}${o.length
+      ? `<span class="count${late ? " missing" : ""}" title="${o.length} out">${o.length}</span>` : ""}</button>`;
+  }).join("");
+
+  $("stats").innerHTML = `
+    <div class="stat"><b>${away.length}</b><span>out now</span></div>
+    <div class="stat denied"><b>${missing.length}</b><span>not signed back after ${limit} min</span></div>
+    <div class="stat"><b>${inClass.length}</b><span>in class, of ${students.length}</span></div>
+    <div class="stat"><b>${tripsToday}</b><span>${tripsToday === 1 ? "trip" : "trips"} today</span></div>`;
+
+  const card = r => {
+    const st = tripStatus(r, now);
+    const m = minutesBetween(r.signed_at, now);
+    return `<article class="trip ${st}">
+      <div class="who"><span class="name">${esc(r.student_name)}</span><span class="pill">${esc(r.class_name)}</span></div>
+      <div class="where">${PLACE[r.destination] || esc(r.destination)} · left at ${clock(r.signed_at)}</div>
+      <div class="time"><span class="min">${fmtMinutes(m)}</span>
+        <button data-back="${r.id}" title="They're back in class but forgot to tap their name">Mark back in</button></div>
+      ${st === "out" ? `<div class="bar" aria-hidden="true"><i style="width:${Math.min(100, m / limit * 100)}%"></i></div>` : ""}
+    </article>`;
+  };
+
+  // Today's trips per student, for the in-class list.
+  const today = new Map();
+  trips.forEach(r => {
+    if (!r.allowed || !r.timed) return;
+    const t = today.get(r.student_email) || { n: 0, min: 0, late: 0 };
+    const st = tripStatus(r, now);
+    t.n++;
+    if (st === "back" || st === "late") t.min += tripMinutes(r, now);
+    if (st === "late" || st === "missing" || st === "teacher") t.late++;
+    today.set(r.student_email, t);
+  });
+  const summary = s => {
+    const t = today.get(s.email);
+    if (!t) return "No trips today";
+    return `${t.n} ${t.n === 1 ? "trip" : "trips"}${t.min ? ` · ${fmtMinutes(t.min)}` : ""}${t.late
+      ? ` · <span class="late">${t.late} not back in ${limit} min</span>` : ""}`;
+  };
+
+  $("board").innerHTML = `
+    <section>
+      <h2>Not signed back <small>· out ${limit}+ minutes, should be in class</small></h2>
+      ${missing.length ? `<div class="cards">${missing.map(card).join("")}</div>`
+        : `<p class="empty">Nobody has been out longer than ${limit} minutes.</p>`}
+    </section>
+    <section>
+      <h2>Out now</h2>
+      ${away.length ? `<div class="cards">${away.map(card).join("")}</div>` : `<p class="empty">Nobody is out right now.</p>`}
+    </section>
+    <section>
+      <h2>In class${cls ? ` · ${esc(cls)}` : ""}</h2>
+      ${cls ? `<ul class="inclass">${inClass.map(s => `<li>${esc(s.name)}<small>${summary(s)}</small></li>`).join("")}</ul>`
+        : `<p class="empty">Pick a class above to see each student in it.</p>`}
+    </section>`;
+}
+
+teacherPage(showBoard);
+</script>
+</body>
+</html>

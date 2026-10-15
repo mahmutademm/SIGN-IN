@@ -56,6 +56,12 @@
   .actions button { flex: 1; padding: 16px; font-weight: 700; border-radius: 12px; cursor: pointer;
     border: 1px solid var(--line); background: transparent; }
   .actions .primary { background: var(--sky); border-color: var(--sky); color: var(--accent-ink); }
+  .card p.ask { color: var(--ink); font-size: 20px; font-weight: 700; margin-bottom: 14px; }
+  .card p.wait { margin: 0; }
+  .where { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .where button { padding: 26px 12px; font-size: 24px; font-weight: 700; border-radius: 14px; cursor: pointer;
+    background: var(--sky); border: 1px solid var(--sky); color: var(--accent-ink); }
+  .card button:disabled { opacity: .6; }
   .done { width: 64px; height: 64px; margin: 0 auto 12px; border-radius: 50%; display: grid; place-items: center;
     font-size: 34px; background: var(--accent-soft); color: var(--sky); }
   /* Refused: the whole screen turns red so it reads from across the room. */
@@ -118,7 +124,7 @@ async function showClass() {
   document.title = `${cls} · Restroom Sign-In`;
   app.innerHTML = `
     <header><h1>Class ${esc(cls)}</h1><a class="back" href="?pick">All classes</a></header>
-    <p class="sub">Find your name and tap it to sign out to the restroom.</p>
+    <p class="sub">Tap your name to sign out. Tap it again when you come back.</p>
     <input type="search" id="q" placeholder="Search your name or email" autocomplete="off" aria-label="Search">
     <ul class="list" id="list"></ul>`;
   const q = document.getElementById("q");
@@ -133,15 +139,17 @@ async function showClass() {
   q.addEventListener("input", render);
   list.addEventListener("click", e => {
     const b = e.target.closest("button[data-email]");
-    if (b) confirmSignIn(students.find(s => s.email === b.dataset.email));
+    if (b) openStudent(students.find(s => s.email === b.dataset.email));
   });
   render();
   if (!students.length) list.innerHTML = `<li class="empty">No class called "${esc(cls)}". <a href="?pick">Pick a class</a>.</li>`;
 }
 
 let resetTimer;
+let tap = 0;   // bumped on every open/close, so a slow answer can't fill in a card that was already closed
 function closeOverlay() {
   clearTimeout(resetTimer);
+  tap++;
   overlay.classList.remove("open", "denied");
   const q = document.getElementById("q");
   // On the iPad, focusing would pop the keyboard over the name list after every sign-in.
@@ -160,35 +168,86 @@ function showDenied(res) {
   resetTimer = setTimeout(closeOverlay, 10000);
 }
 
-function confirmSignIn(s) {
+// Tapping a name asks the server whether the student is out: if not, they pick where they're going;
+// if so, they sign back in. Students never see how long they were out; only teachers do.
+async function openStudent(s) {
+  const mine = ++tap;
+  card.innerHTML = `<h2>${esc(s.name)}</h2><p>${esc(s.email)}</p><p class="wait">One moment…</p>`;
+  overlay.classList.add("open");
+  try {
+    const st = await db.rpc("toilet_status", { p_email: s.email });
+    if (mine === tap) st.out ? askBack(s) : askWhere(s);
+  } catch (err) {
+    if (mine === tap) showError("Couldn't load", err);
+  }
+}
+
+function askWhere(s) {
   card.innerHTML = `
     <h2>${esc(s.name)}</h2>
     <p>${esc(s.email)}</p>
+    <p class="ask">Where are you going?</p>
+    <div class="where">
+      <button data-dest="restroom">Restroom</button>
+      <button data-dest="hallway">Hallway</button>
+    </div>
+    <div class="actions"><button id="cancel">Cancel</button></div>`;
+  document.getElementById("cancel").onclick = closeOverlay;
+  card.querySelectorAll("[data-dest]").forEach(b => b.onclick = () => signOut(s, b.dataset.dest));
+  card.querySelector("[data-dest]").focus();
+}
+
+async function signOut(s, dest) {
+  const mine = tap;
+  card.querySelectorAll("button").forEach(b => b.disabled = true);
+  try {
+    const res = await db.rpc("toilet_sign_in", { p_email: s.email, p_destination: dest });
+    if (mine !== tap) return;
+    if (res.allowed === false) return showDenied(res);
+    showDone("You're signed out", `${esc(res.name)} · ${res.destination === "hallway" ? "Hallway" : "Restroom"} · ${clock(res.signed_at)}`
+      + `${res.duplicate ? "<br>(you were already signed out a moment ago)" : ""}<br><br>Tap your name again when you come back.`, 6000);
+  } catch (err) {
+    if (mine === tap) showError("Couldn't sign out", err);
+  }
+}
+
+function askBack(s) {
+  card.innerHTML = `
+    <h2>${esc(s.name)}</h2>
+    <p>${esc(s.email)}</p>
+    <p class="ask">Back in class?</p>
     <div class="actions">
       <button id="cancel">Cancel</button>
-      <button class="primary" id="go">Sign in</button>
+      <button class="primary" id="back">I'm back</button>
     </div>`;
-  overlay.classList.add("open");
-  document.getElementById("go").focus();
   document.getElementById("cancel").onclick = closeOverlay;
-  document.getElementById("go").onclick = async (ev) => {
+  document.getElementById("back").focus();
+  document.getElementById("back").onclick = async (ev) => {
+    const mine = tap;
     ev.target.disabled = true;
     try {
-      const res = await db.rpc("toilet_sign_in", { p_email: s.email });
-      if (res.allowed === false) return showDenied(res);
-      card.innerHTML = `
-        <div class="done" aria-hidden="true">✓</div>
-        <h2>Signed in</h2>
-        <p>${esc(res.name)} · ${clock(res.signed_at)}${res.duplicate ? "<br>(you were already signed in a moment ago)" : ""}</p>
-        <div class="actions"><button class="primary" id="ok">Done</button></div>`;
-      document.getElementById("ok").onclick = closeOverlay;
-      resetTimer = setTimeout(closeOverlay, 4000);
+      const res = await db.rpc("toilet_sign_back", { p_email: s.email });
+      if (mine === tap) showDone("Welcome back", esc(res.name), 3000);
     } catch (err) {
-      card.innerHTML = `<h2 class="err">Couldn't sign in</h2><p>${esc(why(err))}. Please tell your teacher.</p>
-        <div class="actions"><button class="primary" id="ok">Close</button></div>`;
-      document.getElementById("ok").onclick = closeOverlay;
+      if (mine === tap) showError("Couldn't sign back in", err);
     }
   };
+}
+
+function showDone(title, body, ms) {
+  card.innerHTML = `
+    <div class="done" aria-hidden="true">✓</div>
+    <h2>${title}</h2>
+    <p>${body}</p>
+    <div class="actions"><button class="primary" id="ok">Done</button></div>`;
+  document.getElementById("ok").onclick = closeOverlay;
+  resetTimer = setTimeout(closeOverlay, ms);
+}
+
+function showError(title, err) {
+  card.innerHTML = `<h2 class="err">${title}</h2><p>${esc(why(err))}. Please tell your teacher.</p>
+    <div class="actions"><button class="primary" id="ok">Close</button></div>`;
+  document.getElementById("ok").onclick = closeOverlay;
 }
 overlay.addEventListener("click", e => { if (e.target === overlay) closeOverlay(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape") closeOverlay(); });

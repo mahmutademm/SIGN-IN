@@ -3,13 +3,29 @@
 Static site backed by Supabase (project `fomzenfbdtoqwknqtkzi`, free tier).
 
 - `index.html`: student kiosk, installable on an iPad as an app (PWA). Shows a class picker; `index.html?class=8A` opens that class's own sign-in page.
-- `teacher.html`: teacher log, unlocked with the shared teacher code. Filter by date range, class, student, or status (signed in / denied); download CSV.
+- `out.html`: **Who's out**, the live teacher view. Pick a class to see who is out right now (with minutes), who hasn't signed back in, and who is in class. `out.html?class=8A` opens one class.
+- `teacher.html`: teacher log. Filter by date range, class, student, or status (sign-ins, over 30 minutes / not signed back, denied); shows out and back times and minutes; download CSV.
+- `assets/teacher.js`, `assets/teacher.css`: shared by the two teacher pages (teacher code, lock screen, trip labels). Both open with the shared teacher code, and stay unlocked while moving between them in the same browser tab.
 - `config.js`: Supabase URL and publishable key (safe to be public).
 - `manifest.webmanifest`, `sw.js`, `assets/icons/`: what makes the kiosk installable and lets it open without Wi-Fi.
 
+## Signing out and back in
+
+1. A student taps their name and picks **Restroom** or **Hallway**. That time is when they left.
+2. When they come back, they tap their name again and then **I'm back**.
+3. Students never see how many minutes they were out. The kiosk only says "You're signed out" and "Welcome back".
+   Teachers see the minutes on **Who's out** and in the log.
+4. If a student hasn't signed back in after **30 minutes**, they show as **Not signed back** (red) on Who's out:
+   assume they forgot to sign back in or didn't come back to class. If they do tap back later, the log shows **Back late**.
+5. If a student is back in class but forgot to tap, a teacher can press **Mark back in** on Who's out. The log shows
+   "Signed back by teacher", and those trips are left out of the average time.
+
+A trip still open at the end of the day stays "Not signed back" in the log, and the student starts fresh the next day.
+Sign-ins from before this feature existed (before Oct 15, 2026) show as "Not timed".
+
 ## Restroom rule
 
-During school hours (8:30 AM – 3:30 PM, New York time) a student may go once every 3 hours.
+During school hours (8:30 AM – 3:30 PM, New York time) a student may go to the restroom once every 3 hours. Hallway trips have no limit.
 A second attempt inside that window turns the kiosk screen red, tells the student when they can go again,
 and is saved as a **Denied** entry in the teacher log. Outside school hours there is no limit.
 Only visits made during today's school hours count, and two taps within 2 minutes count as one visit.
@@ -32,10 +48,11 @@ The app reloads itself when the iPad wakes after an hour or more, so roster chan
 | Table | Contents |
 |---|---|
 | `toilet_students` | email, name, class_name. The roster, readable by the kiosk |
-| `toilet_signins` | student_email, class_name, signed_at, allowed (`false` = denied attempt). Not directly readable or writable by the public key |
-| `toilet_settings` | bcrypt hash of the teacher code; school hours, timezone, and minutes between visits |
+| `toilet_signins` | One row per trip: student_email, class_name, destination (`restroom`/`hallway`), signed_at (left), returned_at and returned_by (`student`/`teacher`), allowed (`false` = denied attempt), timed (`false` for rows from before signing back existed). Not directly readable or writable by the public key |
+| `toilet_settings` | bcrypt hash of the teacher code; school hours, timezone, minutes between visits, and minutes before "not signed back" |
 
-Functions: `toilet_sign_in(email)`, `toilet_check_code(code)`, `toilet_teacher_signins(code, from, to, class)`.
+Kiosk functions: `toilet_status(email)` (is the student out? no times), `toilet_sign_in(email, destination)`, `toilet_sign_back(email)`.
+Teacher functions (need the teacher code): `toilet_check_code(code)`, `toilet_teacher_settings(code)`, `toilet_teacher_signins(code, from, to, class)`, `toilet_teacher_sign_back(code, id)`.
 
 ## Common tasks (Supabase → SQL Editor)
 
@@ -47,6 +64,9 @@ update toilet_settings set value = extensions.crypt('NEW-CODE', extensions.gen_s
 update toilet_settings set value = '08:30' where key = 'school_start';
 update toilet_settings set value = '15:30' where key = 'school_end';
 update toilet_settings set value = '180' where key = 'visit_gap_minutes';
+
+-- Change how long a student can be out before showing as "not signed back"
+update toilet_settings set value = '30' where key = 'overdue_minutes';
 
 -- Add a student / move a student to another class
 insert into toilet_students values ('name@edepacademy.org', 'First Last', '8A');
