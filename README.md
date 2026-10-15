@@ -24,12 +24,12 @@ Static site backed by Supabase (project `fomzenfbdtoqwknqtkzi`, free tier).
 A trip still open at the end of the day stays "Not signed back" in the log, and the student starts fresh the next day.
 Sign-ins from before this feature existed (before Oct 15, 2026) show as "Not timed".
 
-## Restroom rule
+## 3-hour rule
 
-During school hours (8:30 AM – 3:30 PM, New York time) a student may go to the restroom once every 3 hours. Hallway trips have no limit.
-A second attempt inside that window turns the kiosk screen red, tells the student when they can go again,
-and is saved as a **Denied** entry in the teacher log. Outside school hours there is no limit.
-Only visits made during today's school hours count, and two taps within 2 minutes count as one visit.
+A student may go out once every 3 hours, to the restroom or the hallway, at any time of day.
+The 3 hours start when they sign out. Another attempt inside that window turns the kiosk screen red,
+tells the student when they can go again, and is saved as a **Denied** entry in the teacher log.
+Two taps within 2 minutes while still out count as one trip.
 
 The rule runs in the database (`toilet_sign_in`), so reloading the page or using another iPad doesn't get around it.
 
@@ -60,7 +60,7 @@ Don't install Who's Out on a student kiosk iPad: anyone who can leave the kiosk 
 |---|---|
 | `toilet_students` | email, name, class_name. The roster, readable by the kiosk |
 | `toilet_signins` | One row per trip: student_email, class_name, destination (`restroom`/`hallway`), signed_at (left), returned_at and returned_by (`student`/`teacher`), allowed (`false` = denied attempt), timed (`false` for rows from before signing back existed). Not directly readable or writable by the public key |
-| `toilet_settings` | bcrypt hash of the teacher code; school hours, timezone, minutes between visits, and minutes before "not signed back" |
+| `toilet_settings` | bcrypt hash of the teacher code; timezone, minutes between trips (`visit_gap_minutes`), and minutes before "not signed back" (`overdue_minutes`). `school_start`/`school_end` are still there but no longer used |
 
 Kiosk functions: `toilet_status(email)` (is the student out? no times), `toilet_sign_in(email, destination)`, `toilet_sign_back(email)`.
 Teacher functions (need the teacher code): `toilet_check_code(code)`, `toilet_teacher_settings(code)`, `toilet_teacher_signins(code, from, to, class)`, `toilet_teacher_sign_back(code, id)`.
@@ -71,9 +71,7 @@ Teacher functions (need the teacher code): `toilet_check_code(code)`, `toilet_te
 -- Change the teacher code
 update toilet_settings set value = extensions.crypt('NEW-CODE', extensions.gen_salt('bf')) where key = 'teacher_code_hash';
 
--- Change school hours or the gap between visits (times are local to school_timezone)
-update toilet_settings set value = '08:30' where key = 'school_start';
-update toilet_settings set value = '15:30' where key = 'school_end';
+-- Change the gap between trips (the 3-hour rule), in minutes
 update toilet_settings set value = '180' where key = 'visit_gap_minutes';
 
 -- Change how long a student can be out before showing as "not signed back"

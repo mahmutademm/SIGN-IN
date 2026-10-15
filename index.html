@@ -160,8 +160,8 @@ function showDenied(res) {
   overlay.classList.add("denied");
   card.innerHTML = `
     <div class="stop" aria-hidden="true">✕</div>
-    <h2>You can't use the restroom right now</h2>
-    <p>${esc(res.name)}, you already went at ${clock(res.last_at)}.<br>You can go again at ${clock(res.next_at)}.</p>
+    <h2>You can't go out right now</h2>
+    <p>${esc(res.name)}, you already went out at ${clock(res.last_at)}.<br>You can go again at ${clock(res.next_at)}.</p>
     <p class="small">This was recorded for your teacher. If it's an emergency, ask your teacher.</p>
     <div class="actions"><button class="primary" id="ok">OK</button></div>`;
   document.getElementById("ok").onclick = closeOverlay;
