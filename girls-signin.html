@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Girls · Restroom Sign-In</title>
+<meta name="theme-color" content="#0d1829">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Girls Sign-In">
+<link rel="manifest" href="girls-signin.webmanifest">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/theme.css">
+<link rel="stylesheet" href="assets/kiosk.css">
+<link rel="icon" href="assets/edep-logo.png">
+</head>
+<body>
+<main>
+  <div class="brand"><img src="assets/edep-logo-light.png" alt="Edep Academy"><span class="tag">Girls · Restroom Sign-In</span></div>
+  <div id="app"><p class="sub">Loading…</p></div>
+</main>
+
+<div class="overlay" id="overlay" role="dialog" aria-modal="true">
+  <div class="card" id="card"></div>
+</div>
+
+<script>
+// Students here see only the girls' classes: every class whose name ends in D, E or F.
+const SIDE = { name: "Girls", sections: "DEF" };
+</script>
+<script src="config.js"></script>
+<script src="assets/kiosk.js"></script>
+</body>
+</html>

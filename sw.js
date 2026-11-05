@@ -5,19 +5,31 @@ const CACHE = "restroom-v1";
 const SHELL = [
   "./",
   "index.html",
+  "girls-signin.html",
+  "boys-signin.html",
   "config.js",
   "manifest.webmanifest",
+  "girls-signin.webmanifest",
+  "boys-signin.webmanifest",
   "assets/theme.css",
+  "assets/kiosk.css",
+  "assets/kiosk.js",
   "assets/edep-logo.png",
   "assets/edep-logo-light.png",
   "assets/icons/apple-touch-icon.png",
   "assets/icons/icon-192.png",
   // Who's Out (teacher app) and the log it links to
   "out.html",
+  "girls.html",
+  "boys.html",
   "teacher.html",
   "teacher.webmanifest",
+  "girls.webmanifest",
+  "boys.webmanifest",
   "assets/teacher.css",
   "assets/teacher.js",
+  "assets/out.css",
+  "assets/out.js",
 ];
 
 self.addEventListener("install", e => {

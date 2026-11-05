@@ -1,0 +1,30 @@
+{
+  "id": "./girls.html",
+  "name": "Edep Who's Out · Girls",
+  "short_name": "Girls Out",
+  "description": "Live view, for Edep Academy teachers, of which students in the girls' classes are out of class.",
+  "start_url": "./girls.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1829",
+  "theme_color": "#0d1829",
+  "icons": [
+    {
+      "src": "assets/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "assets/icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

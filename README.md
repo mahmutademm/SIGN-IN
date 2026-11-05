@@ -3,7 +3,14 @@
 Static site backed by Supabase (project `fomzenfbdtoqwknqtkzi`, free tier).
 
 - `index.html`: student kiosk, installable on an iPad as an app (PWA). Shows a class picker; `index.html?class=8A` opens that class's own sign-in page.
+- `girls-signin.html` / `boys-signin.html`: the same kiosk for one side. The girls' page lists only classes ending in **D, E, F**,
+  the boys' page only **A, B, C**; a class from the other side can't be opened there, even by typing `?class=`. Each installs as its own iPad app
+  ("Girls Sign-In", "Boys Sign-In") and remembers its own class. `assets/kiosk.js` and `assets/kiosk.css` hold the kiosk for all three pages.
 - `out.html`: **Who's out**, the live teacher view. Pick a class to see who is out right now (with minutes), who hasn't signed back in, and who is in class. `out.html?class=8A` opens one class. Installable on a phone or iPad as its own app, "Who's Out" (`teacher.webmanifest`).
+- `girls.html` / `boys.html`: the same Who's out board limited to one side: girls' classes end in **D, E, F** (8D, 8E, 8F), boys' in **A, B, C**.
+  Each installs as its own app ("Girls Out", "Boys Out"; `girls.webmanifest`, `boys.webmanifest`). A new class such as 9D shows up on the right board by its last letter;
+  to change which letters belong to which side, edit `SIDE` near the bottom of `girls.html` / `boys.html`.
+- `assets/out.js`, `assets/out.css`: the board itself, shared by `out.html`, `girls.html` and `boys.html`.
 - `teacher.html`: teacher log. Filter by date range, class, student, or status (sign-ins, over 30 minutes / not signed back, denied); shows out and back times and minutes; download CSV.
 - `assets/teacher.js`, `assets/teacher.css`: shared by the two teacher pages (teacher code, lock screen, trip labels). Both open with the shared teacher code, and stay unlocked while moving between them in the same browser tab.
   The code is never saved on the device: closing the tab or app forgets it, and a teacher page left in the background for 15 minutes locks itself (`LOCK_AFTER_MINUTES` in `assets/teacher.js`).
@@ -35,7 +42,8 @@ The rule runs in the database (`toilet_sign_in`), so reloading the page or using
 
 ## Set up a class iPad
 
-1. Open the site in **Safari** on the iPad and tap the class (or go straight to `…/?class=8A`).
+1. Open `…/boys-signin.html` (boys' classes) or `…/girls-signin.html` (girls' classes) in **Safari** on the iPad and tap the class
+   (or go straight to `…/boys-signin.html?class=8A`).
 2. Tap **Share → Add to Home Screen → Add**. The "Restroom" icon opens full screen, without Safari's bars.
 3. Open the app from the home screen once and pick the class. The app reopens on that class from then on;
    "All classes" releases it.
@@ -46,7 +54,7 @@ The app reloads itself when the iPad wakes after an hour or more, so roster chan
 
 ## Install Who's Out on a teacher's phone or iPad
 
-1. Open `…/out.html` in **Safari** (iPhone/iPad) or **Chrome** (Android, computer).
+1. Open `…/out.html` (or `…/girls.html` / `…/boys.html` for one side) in **Safari** (iPhone/iPad) or **Chrome** (Android, computer).
 2. iPhone/iPad: **Share → Add to Home Screen → Add**. Android/computer: Chrome's menu → **Install app** (or **Add to Home screen**).
 3. The "Who's Out" icon opens full screen on the Who's out page; **Log** is one tap away inside the app.
 4. It asks for the teacher code every time it is opened fresh, and again after 15 minutes in the background.
@@ -70,6 +78,9 @@ Teacher functions (need the teacher code): `toilet_check_code(code)`, `toilet_te
 ```sql
 -- Change the teacher code
 update toilet_settings set value = extensions.crypt('NEW-CODE', extensions.gen_salt('bf')) where key = 'teacher_code_hash';
+
+-- Any row whose key starts with teacher_code_hash is an accepted code. Remove the temporary demo code:
+delete from toilet_settings where key = 'teacher_code_hash_demo';
 
 -- Change the gap between trips (the 3-hour rule), in minutes
 update toilet_settings set value = '180' where key = 'visit_gap_minutes';

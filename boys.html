@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Who's Out · Boys</title>
+<meta name="theme-color" content="#0d1829">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Boys Out">
+<link rel="manifest" href="boys.webmanifest">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/theme.css">
+<link rel="stylesheet" href="assets/teacher.css">
+<link rel="stylesheet" href="assets/out.css">
+<link rel="icon" href="assets/edep-logo.png">
+</head>
+<body>
+<main>
+  <div class="brand" id="brand" hidden><img src="assets/edep-logo-light.png" alt="Edep Academy">
+    <nav class="tag"><a href="boys.html" aria-current="page">Who's out</a><a href="teacher.html">Log</a>
+      <button class="link" id="logout">Lock</button></nav></div>
+  <div id="app"></div>
+</main>
+<script>
+// This board shows only the boys' classes: every class whose name ends in A, B or C (8A, 9A…).
+const SIDE = { name: "Boys", sections: "ABC" };
+</script>
+<script src="config.js"></script>
+<script src="assets/teacher.js"></script>
+<script src="assets/out.js"></script>
+</body>
+</html>

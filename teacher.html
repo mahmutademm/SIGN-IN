@@ -32,7 +32,7 @@
 <body>
 <main>
   <div class="brand" id="brand" hidden><img src="assets/edep-logo-light.png" alt="Edep Academy">
-    <nav class="tag"><a href="out.html">Who's out</a><a href="teacher.html" aria-current="page">Log</a>
+    <nav class="tag"><a href="out.html" id="board">Who's out</a><a href="teacher.html" aria-current="page">Log</a>
       <button class="link" id="logout">Lock</button></nav></div>
   <div id="app"></div>
 </main>
@@ -242,6 +242,7 @@ function downloadCsv() {
   a.click();
 }
 
+$("board").href = store.get("board") || "out.html";
 teacherPage(showDashboard);
 </script>
 </body>
