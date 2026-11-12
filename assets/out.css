@@ -27,3 +27,6 @@ section h2 small { font-weight: 400; }
 .inclass small { display: block; margin-top: 2px; color: var(--muted); font-size: 13px; }
 .inclass .late { color: var(--warn); }
 .empty { color: var(--muted); margin: 0; }
+.trip .lesson { font-size: 14px; }
+.now { margin: -8px 0 20px; color: var(--ink); }
+.now small { color: var(--muted); font-size: 14px; }

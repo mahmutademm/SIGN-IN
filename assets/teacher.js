@@ -101,3 +101,8 @@ function tripMinutes(r, now = Date.now()) {
   if (r.returned_at) return minutesBetween(r.signed_at, r.returned_at);
   return ymd(new Date(r.signed_at)) === ymd(new Date(now)) ? minutesBetween(r.signed_at, now) : null;
 }
+
+// The class and teacher a trip happened in, from the timetable (assets/schedule.js). null outside lessons.
+const tripLesson = r => Schedule.at(r.class_name, r.signed_at);
+const lessonText = slot => !slot ? "" : slot.teacher ? `${slot.label} · ${slot.subject} · ${slot.teacher}` : slot.label;
+const lessonLine = r => { const t = lessonText(tripLesson(r)); return t ? `<div class="lesson">${esc(t)}</div>` : ""; };

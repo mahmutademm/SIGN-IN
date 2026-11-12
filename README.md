@@ -14,6 +14,12 @@ Static site backed by Supabase (project `fomzenfbdtoqwknqtkzi`, free tier).
 - `teacher.html`: teacher log. Filter by date range, class, student, or status (sign-ins, over 30 minutes / not signed back, denied); shows out and back times and minutes; download CSV.
 - `assets/teacher.js`, `assets/teacher.css`: shared by the two teacher pages (teacher code, lock screen, trip labels). Both open with the shared teacher code, and stay unlocked while moving between them in the same browser tab.
   The code is never saved on the device: closing the tab or app forgets it, and a teacher page left in the background for 15 minutes locks itself (`LOCK_AFTER_MINUTES` in `assets/teacher.js`).
+- `assets/schedule.js`: the bell schedules and every class's timetable (who teaches which class, each day and period).
+  The sign-in pages show what each class has right now ("Now: 3rd period · Science · Semih Nazli"). Who's out shows,
+  for each student out, the period and teacher they left, and the log has a **Lesson** column, a **Teacher** filter,
+  a **By teacher** panel and Period/Subject/Teacher columns in the CSV.
+  The teacher for a trip is worked out from its time and class, so it also works for older sign-ins (using today's bell times).
+  A sign-out between two periods counts toward the period that is starting. If the timetable or bell times change, edit this file.
 - `config.js`: Supabase URL and publishable key (safe to be public).
 - `manifest.webmanifest`, `sw.js`, `assets/icons/`: what makes the kiosk installable and lets it open without Wi-Fi.
 

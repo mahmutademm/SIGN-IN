@@ -27,6 +27,11 @@
   .studentlink { background: none; border: 0; padding: 0; text-align: left; cursor: pointer; }
   .studentlink:hover { text-decoration: underline; color: var(--sky); }
   .range { color: var(--muted); margin: -8px 0 16px; font-size: 14px; }
+  td small.sub { display: block; color: var(--muted); font-size: 12px; }
+  .quiet { color: var(--muted); }
+  .grid > div { display: grid; gap: 20px; align-content: start; }
+  #byteacher td:first-child { white-space: normal; }
+  .studentlink[aria-current] { color: var(--sky); font-weight: 700; }
 </style>
 </head>
 <body>
@@ -37,6 +42,7 @@
   <div id="app"></div>
 </main>
 <script src="config.js"></script>
+<script src="assets/schedule.js"></script>
 <script src="assets/teacher.js"></script>
 <script>
 const parseDay = s => new Date(`${s}T00:00:00`);
@@ -65,6 +71,9 @@ async function showDashboard() {
         </select>
       </label>
       <label>Class<select id="cls"><option value="">All classes</option>${classes.map(c => `<option>${esc(c)}</option>`).join("")}</select></label>
+      <label>Teacher<select id="teacher"><option value="">All teachers</option>${Object.entries(Schedule.TEACHERS)
+        .sort((a, b) => a[1].localeCompare(b[1])).map(([k, n]) => `<option value="${esc(k)}">${esc(n)}</option>`).join("")}
+        <option value="-">No lesson (break, lunch…)</option></select></label>
       <label class="student">Student<select id="student"></select></label>
       <label>Status
         <select id="status">
@@ -80,7 +89,10 @@ async function showDashboard() {
     <div class="stats" id="stats"></div>
     <div class="grid">
       <section class="panel"><h2>Sign-ins</h2><div id="table"></div></section>
-      <section class="panel"><h2>Most frequent</h2><div id="top"></div></section>
+      <div>
+        <section class="panel"><h2>Most frequent</h2><div id="top"></div></section>
+        <section class="panel"><h2>By teacher</h2><div id="byteacher"></div></section>
+      </div>
     </div>`;
 
   fillStudents();
@@ -88,18 +100,23 @@ async function showDashboard() {
   $("period").addEventListener("change", load);
   $("cls").addEventListener("change", () => { fillStudents(); load(); });
   $("student").addEventListener("change", render);
+  $("teacher").addEventListener("change", render);
   $("status").addEventListener("change", render);
   $("prev").onclick = () => shiftDay(-1);
   $("next").onclick = () => shiftDay(1);
   $("today").onclick = () => { $("day").value = ymd(new Date()); $("period").value = "day"; load(); };
   $("clear").onclick = () => {
-    $("day").value = ymd(new Date()); $("period").value = "day"; $("cls").value = ""; $("student").value = ""; $("status").value = "";
+    $("day").value = ymd(new Date()); $("period").value = "day"; $("cls").value = ""; $("teacher").value = ""; $("student").value = ""; $("status").value = "";
     fillStudents(); load();
   };
   $("csv").onclick = downloadCsv;
   $("top").addEventListener("click", e => {
     const b = e.target.closest("[data-email]");
     if (b) { $("student").value = b.dataset.email; render(); }
+  });
+  $("byteacher").addEventListener("click", e => {
+    const b = e.target.closest("[data-teacher]");
+    if (b) { $("teacher").value = b.dataset.teacher; render(); }
   });
   await load();
   refreshTimer = setInterval(load, 30000);
@@ -159,11 +176,15 @@ async function load() {
   }
 }
 
+// The teacher whose lesson a trip was in ("-" outside lessons), for the Teacher filter.
+const teacherOf = r => tripLesson(r)?.teacherKey || "-";
+const byTeacher = r => !$("teacher").value || teacherOf(r) === $("teacher").value;
+
 function filtered() {
   const email = $("student").value;
   const status = $("status").value;
   const long = r => ["missing", "late", "teacher"].includes(tripStatus(r));
-  return rows.filter(r => (!email || r.student_email === email)
+  return rows.filter(r => byTeacher(r) && (!email || r.student_email === email)
     && (!status || (status === "long" ? long(r) : (status === "denied") !== r.allowed)));
 }
 
@@ -179,7 +200,7 @@ function render() {
     : { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
   const byStudent = new Map();
-  rows.forEach(r => {
+  rows.filter(byTeacher).forEach(r => {
     const s = byStudent.get(r.student_email) || { name: r.student_name, email: r.student_email, cls: r.class_name, n: 0, denied: 0, missing: 0, min: 0 };
     const st = tripStatus(r, now);
     if (r.allowed) s.n++; else s.denied++;
@@ -206,7 +227,7 @@ function render() {
     <div class="stat"><b>${days}</b><span>${days === 1 ? "day with sign-ins" : "days with sign-ins"}</span></div>`;
 
   $("table").innerHTML = list.length ? `
-    <table><thead><tr><th>Out</th><th>Back</th><th>Time out</th><th>Student</th><th>Class</th><th>Where</th><th>Status</th></tr></thead>
+    <table><thead><tr><th>Out</th><th>Back</th><th>Time out</th><th>Student</th><th>Class</th><th>Lesson</th><th>Where</th><th>Status</th></tr></thead>
     <tbody>${list.map(r => {
       const st = tripStatus(r, now);
       const m = tripMinutes(r, now);
@@ -215,6 +236,7 @@ function render() {
         <td${m == null ? ` class="quiet"` : ""}>${m == null ? "–" : fmtMinutes(m)}</td>
         <td title="${esc(r.student_email)}">${esc(r.student_name)}</td>
         <td><span class="pill">${esc(r.class_name)}</span></td>
+        <td>${lessonCell(tripLesson(r))}</td>
         <td>${PLACE[r.destination] || esc(r.destination)}</td>
         <td>${statusPill(st)}</td></tr>`;
     }).join("")}</tbody></table>`
@@ -226,15 +248,38 @@ function render() {
       <td><span class="pill">${esc(s.cls)}</span></td>
       <td>${s.n}×${s.min ? ` · ${fmtMinutes(s.min)}` : ""}${s.missing ? ` <span class="pill denied">${s.missing} not back</span>` : ""}${s.denied ? ` <span class="pill denied">${s.denied} denied</span>` : ""}</td></tr>`).join("")}</tbody></table>`
     : `<p class="muted">Nothing yet.</p>`;
+
+  // Sign-ins per teacher whose lesson the student left (all the loaded days and classes).
+  const perTeacher = new Map();
+  rows.forEach(r => {
+    const slot = tripLesson(r);
+    const key = slot?.teacherKey || "-";
+    const t = perTeacher.get(key) || { key, name: slot?.teacher || "No lesson", n: 0, denied: 0 };
+    if (r.allowed) t.n++; else t.denied++;
+    perTeacher.set(key, t);
+  });
+  const teachers = [...perTeacher.values()].sort((a, b) => (a.key === "-") - (b.key === "-") || b.n - a.n || a.name.localeCompare(b.name));
+  $("byteacher").innerHTML = teachers.length ? `
+    <table><tbody>${teachers.map(t => `<tr>
+      <td><button class="studentlink" data-teacher="${esc(t.key)}"${t.key === $("teacher").value ? ` aria-current="true"` : ""}>${esc(t.name)}</button></td>
+      <td>${t.n}×${t.denied ? ` <span class="pill denied">${t.denied} denied</span>` : ""}</td></tr>`).join("")}</tbody></table>`
+    : `<p class="muted">Nothing yet.</p>`;
+}
+
+// "3rd period" with the subject and teacher under it; just "Lunch" etc. outside lessons.
+function lessonCell(slot) {
+  if (!slot) return `<span class="quiet">–</span>`;
+  return slot.teacher ? `${esc(slot.teacher)}<small class="sub">${esc(slot.label)} · ${esc(slot.subject)}</small>` : `<span class="quiet">${esc(slot.label)}</span>`;
 }
 
 function downloadCsv() {
   const q = v => `"${String(v).replace(/"/g, '""')}"`;
   const hm = d => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const lines = [["Date", "Out", "Back", "Minutes", "Student", "Email", "Class", "Where", "Status"].join(",")].concat(filtered().map(r => {
+  const lines = [["Date", "Out", "Back", "Minutes", "Student", "Email", "Class", "Period", "Subject", "Teacher", "Where", "Status"].join(",")].concat(filtered().map(r => {
     const m = tripMinutes(r);
+    const slot = tripLesson(r);
     return [ymd(new Date(r.signed_at)), hm(r.signed_at), r.returned_at ? hm(r.returned_at) : "", m == null ? "" : m,
-      r.student_name, r.student_email, r.class_name, PLACE[r.destination] || r.destination, STATUS[tripStatus(r)][0]].map(q).join(",");
+      r.student_name, r.student_email, r.class_name, slot ? slot.label : "", slot ? slot.subject : "", slot ? slot.teacher : "", PLACE[r.destination] || r.destination, STATUS[tripStatus(r)][0]].map(q).join(",");
   }));
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv" }));

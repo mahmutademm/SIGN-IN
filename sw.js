@@ -14,6 +14,7 @@ const SHELL = [
   "assets/theme.css",
   "assets/kiosk.css",
   "assets/kiosk.js",
+  "assets/schedule.js",
   "assets/edep-logo.png",
   "assets/edep-logo-light.png",
   "assets/icons/apple-touch-icon.png",

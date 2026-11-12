@@ -34,7 +34,8 @@ async function showClassPicker() {
     <h1>Choose your class</h1>
     <p class="sub">Tap your class to open its sign-in page.</p>
     <div class="classes">${names.map(c =>
-      `<a href="?class=${encodeURIComponent(c)}">${esc(c)}<span>${counts[c]} students</span></a>`).join("")}</div>`;
+      `<a href="?class=${encodeURIComponent(c)}">${esc(c)}<span>${counts[c]} students</span><em data-now="${esc(c)}"></em></a>`).join("")}</div>`;
+  showNow();
 }
 
 async function showClass() {
@@ -43,6 +44,7 @@ async function showClass() {
   document.title = `${cls} · Restroom Sign-In`;
   app.innerHTML = `
     <header><h1>Class ${esc(cls)}</h1><a class="back" href="?pick">${side ? `All ${esc(side.name.toLowerCase())}' classes` : "All classes"}</a></header>
+    <p class="now" data-now="${esc(cls)}" aria-live="polite"></p>
     <p class="sub">Tap your name to sign out. Tap it again when you come back.</p>
     <input type="search" id="q" placeholder="Search your name or email" autocomplete="off" aria-label="Search">
     <ul class="list" id="list"></ul>`;
@@ -61,8 +63,23 @@ async function showClass() {
     if (b) openStudent(students.find(s => s.email === b.dataset.email));
   });
   render();
+  showNow();
   if (!students.length) list.innerHTML = `<li class="empty">No class called "${esc(cls)}". <a href="?pick">Pick a class</a>.</li>`;
 }
+
+// Who is teaching each class right now (assets/schedule.js), refreshed every 30 seconds.
+function showNow() {
+  document.querySelectorAll("[data-now]").forEach(el => {
+    const slot = Schedule.at(el.dataset.now);
+    el.hidden = !slot;
+    if (!slot) return;
+    el.innerHTML = el.tagName === "EM"
+      ? esc(slot.teacher ? `${slot.subject} · ${slot.teacher}` : slot.label)
+      : `<b>Now: ${esc(slot.label)}</b>${slot.subject ? ` · ${esc(slot.subject)}` : ""}${slot.teacher ? ` · ${esc(slot.teacher)}` : ""}`
+        + `<span>${slot.room ? `Room ${esc(slot.room)} · ` : ""}${esc(slot.time)}</span>`;
+  });
+}
+setInterval(showNow, 30000);
 
 let resetTimer;
 let tap = 0;   // bumped on every open/close, so a slow answer can't fill in a card that was already closed

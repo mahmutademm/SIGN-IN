@@ -15,6 +15,7 @@ async function showBoard() {
   app.innerHTML = `
     <div class="head"><h1>Who's out${side ? ` · ${esc(side.name)}` : ""}</h1><span class="updated" id="updated" aria-live="polite"></span></div>
     <div class="classes" id="classes" role="group" aria-label="Class"></div>
+    <p class="now" id="now" hidden></p>
     <div id="board"></div>`;
   $("classes").addEventListener("click", e => {
     const b = e.target.closest("[data-class]");
@@ -88,6 +89,7 @@ function render() {
     return `<article class="trip ${st}">
       <div class="who"><span class="name">${esc(r.student_name)}</span><span class="pill">${esc(r.class_name)}</span></div>
       <div class="where">${PLACE[r.destination] || esc(r.destination)} · left at ${clock(r.signed_at)}</div>
+      ${lessonLine(r)}
       <div class="time"><span class="min">${fmtMinutes(m)}</span>
         <button data-back="${r.id}" title="They're back in class but forgot to tap their name">Mark back in</button></div>
       ${st === "out" ? `<div class="bar" aria-hidden="true"><i style="width:${Math.min(100, m / limit * 100)}%"></i></div>` : ""}
@@ -111,6 +113,11 @@ function render() {
     return `${t.n} ${t.n === 1 ? "trip" : "trips"}${t.min ? ` · ${fmtMinutes(t.min)}` : ""}${t.late
       ? ` · <span class="late">${t.late} not back in ${limit} min</span>` : ""}`;
   };
+
+  // The selected class's lesson right now.
+  const slot = cls && Schedule.at(cls);
+  $("now").hidden = !slot;
+  if (slot) $("now").innerHTML = `<b>${esc(cls)} now:</b> ${esc(Schedule.describe(slot))} <small>· ${esc(slot.time)}</small>`;
 
   $("board").innerHTML = `
     <section>
